@@ -12,8 +12,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
+  const [apiErrorMsg, setApiErrorMsg] = useState('');
   const [form] = Form.useForm();
   
+
   useEffect(() => {
     fetch("http://localhost:4000/invoices")
       .then((res) => {
@@ -108,7 +110,7 @@ function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        console.log('res', res)
+
         if (!res.ok) throw new Error("Failed to update invoice");
 
         const updated = await res.json();
@@ -139,7 +141,11 @@ function App() {
           body: JSON.stringify(payload),
         });
 
-        if (!res.ok) throw new Error("Failed to create invoice");
+        if (!res.ok) {
+          const errorData = await res.json();
+          message.error(errorData.error || "Failed to create invoice");
+          return;
+        }
 
         const newInvoice = await res.json();
         setData((prev) => [...prev, { ...newInvoice, key: newInvoice.id }]);
@@ -192,6 +198,7 @@ function App() {
 
       >
         <Form form={form} layout="vertical">
+          <div>{apiErrorMsg}</div>
           <div style={{ display: "flex", gap: 24 }}>
             <div style={{ flex: 1 }}>
               <Form.Item name="support_item_number" label="Support Item #" rules={[{ required: true, message: "Required" }]}>
@@ -264,19 +271,19 @@ function App() {
               <Form.Item name="very_remote" label="Very Remote" rules={[{ required: true, message: "Required" }]}>
                 <InputNumber style={{ width: "100%" }} />
               </Form.Item>
-              <Form.Item name="non_face_to_face_support_provision" label="Non Face-to-Face Support Provision" valuePropName="checked" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="non_face_to_face_support_provision" label="Non Face-to-Face Support Provision" valuePropName="checked" rules={[{  message: "Required" }]}>
                 <Switch />
               </Form.Item>
-              <Form.Item name="provider_travel" label="Provider Travel" valuePropName="checked" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="provider_travel" label="Provider Travel" valuePropName="checked" rules={[{ message: "Required" }]}>
                 <Switch />
               </Form.Item>
-              <Form.Item name="short_notice_cancellations" label="Short Notice Cancellations" valuePropName="checked" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="short_notice_cancellations" label="Short Notice Cancellations" valuePropName="checked" rules={[{ message: "Required" }]}>
                 <Switch />
               </Form.Item>
-              <Form.Item name="ndia_requested_reports" label="NDIA Requested Reports" valuePropName="checked" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="ndia_requested_reports" label="NDIA Requested Reports" valuePropName="checked" rules={[{ message: "Required" }]}>
                 <Switch />
               </Form.Item>
-              <Form.Item name="irregular_sil_supports" label="Irregular SIL Supports" valuePropName="checked" rules={[{ required: true, message: "Required" }]}>
+              <Form.Item name="irregular_sil_supports" label="Irregular SIL Supports" valuePropName="checked" rules={[{ message: "Required" }]}>
                 <Switch />
               </Form.Item>
               <Form.Item name="type" label="Type" rules={[{ required: true, message: "Required" }]}>
