@@ -34,13 +34,10 @@ const InvoicePage = () => {
   const [isXlsxModalVisible, setIsXlsxModalVisible] = useState(false);
 
   const [form] = Form.useForm();
-
   const GET_INVOICE_URL = "http://localhost:4000/invoices";
 
   const columns = [
-    { title: "ID", dataIndex: "id", key: "id" },
-    { title: "Support Item #", dataIndex: "support_item_number", key: "support_item_number" },
-    { title: "Support Item Name", dataIndex: "support_item_name", key: "support_item_name" },
+    { title: "Invoice Number", dataIndex: "invoice_number", key: "invoice_number" },
     { title: "Reg. Group #", dataIndex: "registration_group_number", key: "registration_group_number" },
     { title: "Reg. Group Name", dataIndex: "registration_group_name", key: "registration_group_name" },
     { title: "Support Cat. #", dataIndex: "support_category_number", key: "support_category_number" },
@@ -57,43 +54,59 @@ const InvoicePage = () => {
       key: "end_date",
       render: (date) => (date ? dayjs(date).format("YYYY-MM-DD") : "-"),
     },
-    {
-      title: "ACT",
-      dataIndex: "act",
-      key: "act",
-      render: (value) => (value ? new BigNumber(value).toFormat(2) : "-"),
-    },
-    {
-      title: "NSW",
-      dataIndex: "nsw",
-      key: "nsw",
-      render: (value) => (value ? new BigNumber(value).toFormat(2) : "-"),
-    },
-    {
-      title: "VIC",
-      dataIndex: "vic",
-      key: "vic",
-      render: (value) => (value ? new BigNumber(value).toFormat(2) : "-"),
-    },
+    { title: "Support Item #", dataIndex: "support_item_number", key: "support_item_number" },
+    { title: "Support Item Name", dataIndex: "support_item_name", key: "support_item_name" },
+    { title: "Unit", dataIndex: "unit", key: "unit" },
+    { title: "Invoice Rate", dataIndex: "invoice_rate", key: "invoice_rate" },
+    { title: "Invoice Amount", dataIndex: "invoice_amount", key: "invoice_amount" },
+    { title: "Max Rate", dataIndex: "max_rate", key: "max_rate" },
     { title: "Type", dataIndex: "type", key: "type" },
     {
       title: "Action",
       key: "action",
       render: (_, record) => (
-        <Button
-          type="primary"
-          onClick={() => {
-            setEditingRecord(record);
-            form.setFieldsValue({
-              ...record,
-              start_date: record.start_date ? dayjs(record.start_date) : null,
-              end_date: record.end_date ? dayjs(record.end_date) : null,
-            });
-            setIsModalVisible(true);
-          }}
-        >
-          Edit
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditingRecord(record);
+              form.setFieldsValue({
+                ...record,
+                start_date: record.start_date ? dayjs(record.start_date) : null,
+                end_date: record.end_date ? dayjs(record.end_date) : null,
+              });
+              setIsModalVisible(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            danger
+            onClick={async () => {
+              Modal.confirm({
+                title: "Are you sure you want to delete this invoice?",
+                okText: "Delete",
+                okType: "danger",
+                cancelText: "Cancel",
+                onOk: async () => {
+                  try {
+                    const res = await fetch(`${GET_INVOICE_URL}/${record.id}`, {
+                      method: "DELETE",
+                    });
+                    if (!res.ok) throw new Error("Failed to delete invoice");
+                    setData((prev) => prev.filter((item) => item.id !== record.id));
+                    message.success("Invoice deleted");
+                  } catch (err) {
+                    console.error(err);
+                    message.error("Failed to delete invoice");
+                  }
+                },
+              });
+            }}
+          >
+            Delete
+          </Button>
+        </div>
       ),
     },
   ];
@@ -144,6 +157,7 @@ const InvoicePage = () => {
         const updated = await res.json();
         if (updated && updated.id) {
           message.success("Invoice updated successfully");
+
           setLoading(true);
           fetch(GET_INVOICE_URL)
             .then((res) => {
@@ -169,7 +183,7 @@ const InvoicePage = () => {
 
         if (!res.ok) {
           const errorData = await res.json();
-          message.error(errorData.error || "Failed to create invoice");
+          message.error(errorData.error + ' ' + errorData?.details || "Failed to create invoice");
           return;
         }
 
@@ -221,6 +235,11 @@ const InvoicePage = () => {
     }
   };
 
+  // Utility: generate random 10-digit number (with leading zeros)
+  const generateInvoiceNumber = () => {
+    const num = Math.floor(Math.random() * 9999999999) + 1;
+    return num.toString().padStart(10, "0"); // ensures 10 digits
+  };
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -293,7 +312,21 @@ const InvoicePage = () => {
         okText={editingRecord ? "Update" : "Create"}
         width={900}
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical"
+          initialValues={{
+            invoice_number: generateInvoiceNumber(),
+          }} 
+          onValuesChange={(changedValues, allValues) => {
+            const { unit, invoice_rate } = allValues;
+            if (unit && invoice_rate) {
+              form.setFieldsValue({
+                invoice_amount: Number(unit) * Number(invoice_rate),
+              });
+            } else {
+              form.setFieldsValue({ invoice_amount: undefined }); // reset if incomplete
+            }
+          }}
+        >
           <div style={{ display: "flex", gap: 24 }}>
               <div style={{ flex: 1 }}>
                 <Form.Item name="unit" label="Unit" rules={[{ required: true, message: "Required" }]}>
@@ -303,15 +336,11 @@ const InvoicePage = () => {
                     <InputNumber style={{ width: "100%" }} />
                 </Form.Item>
                 <Form.Item name="invoice_number" label="Invoice Number" rules={[{ required: true, message: "Required" }]}>
-                    <InputNumber style={{ width: "100%" }} />
+                    <InputNumber style={{ width: "100%" }} disabled />
                 </Form.Item>
-
-                {
-                  editingRecord && 
-                    <Form.Item name="invoice_amount" label="Invoice Amount" rules={[{ required: true, message: "Required" }]}>
-                        <InputNumber style={{ width: "100%" }} />
-                    </Form.Item>
-                }
+                <Form.Item name="invoice_amount" label="Invoice Amount" rules={[{ required: true, message: "Required" }]}>
+                    <InputNumber style={{ width: "100%" }} disabled />
+                </Form.Item>
               </div>
               <div style={{ flex: 1 }}>
                 <Form.Item name="support_category_number" label="Support Cat. #" rules={[{ required: true, message: "Required" }]}>
