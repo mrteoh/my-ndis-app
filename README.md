@@ -26,11 +26,3 @@ Welcome to **My NDIS App**! This project helps users manage and track their NDIS
     ```bash
     npm start
     ```
-
-## Contributing
-
-Contributions are welcome! Please open issues or submit pull requests.
-
-## License
-
-This project is licensed under the MIT License.
